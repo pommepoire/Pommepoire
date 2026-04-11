@@ -175,7 +175,7 @@ const appStyles = {
   loadingScreen: { display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#f5f5f5" },
   phoneFrame: { maxWidth:430, margin:"0 auto", height:"100dvh", overflow:"hidden", position:"relative" },
   app: { height:"100%", display:"flex", flexDirection:"column", background:"#fff", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative" },
-  header: { background:"#1a6bb5", padding:"16px 20px 12px", color:"white", flexShrink:0 },
+  header: { background:"#1a6bb5", padding:"env(safe-area-inset-top, 16px) 20px 12px", paddingTop:"max(env(safe-area-inset-top), 16px)", color:"white", flexShrink:0 },
   headerTop: { display:"flex", justifyContent:"space-between", alignItems:"center" },
   headerTrip: { fontSize:18, fontWeight:600 },
   headerSub: { fontSize:12, opacity:0.8, marginTop:2 },

@@ -118,8 +118,14 @@ export default function AuthPage({ onAuth }) {
           <input style={styles.input} placeholder="Nom du voyage (ex : Barcelone 2026)" value={tripForm.name} onChange={e => setTrip("name", e.target.value)} />
           <input style={styles.input} placeholder="Destination" value={tripForm.destination} onChange={e => setTrip("destination", e.target.value)} />
           <div style={styles.row}>
-            <input style={{...styles.input, flex:1}} type="date" value={tripForm.dateStart} onChange={e => setTrip("dateStart", e.target.value)} />
-            <input style={{...styles.input, flex:1}} type="date" value={tripForm.dateEnd} onChange={e => setTrip("dateEnd", e.target.value)} />
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:"#888",marginBottom:4}}>Date de départ</div>
+              <input style={{...styles.input}} type="date" value={tripForm.dateStart} onChange={e => setTrip("dateStart", e.target.value)} />
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:"#888",marginBottom:4}}>Date de retour</div>
+              <input style={{...styles.input}} type="date" value={tripForm.dateEnd} min={tripForm.dateStart} onChange={e => setTrip("dateEnd", e.target.value)} />
+            </div>
           </div>
           <button style={styles.btnPrimary} onClick={() => handleTripAction("create")} disabled={loading}>
             {loading ? "Création..." : "Créer le voyage"}
