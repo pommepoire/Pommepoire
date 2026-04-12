@@ -10,6 +10,7 @@ import ToolsSheet from "./components/ToolsSheet";
 import ReservationForm from "./components/ReservationForm";
 import SharePanel from "./components/SharePanel";
 import NotificationsPanel from "./components/NotificationsPanel";
+import TripSelector from "./components/TripSelector";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -19,9 +20,20 @@ export default function App() {
   const [tab, setTab] = useState("agenda");
   const [showTools, setShowTools] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingReservation, setEditingReservation] = useState(null);
   const [showShare, setShowShare] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showTripSelector, setShowTripSelector] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setDarkMode(mq.matches);
+    const handler = e => setDarkMode(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -55,82 +67,91 @@ export default function App() {
     return unsub;
   }, [tripId]);
 
+  const dm = darkMode;
+  const C = {
+    bg: dm ? "#111" : "#fff",
+    bg2: dm ? "#1c1c1e" : "#f8f9fa",
+    text: dm ? "#fff" : "#111",
+    text2: dm ? "#aaa" : "#666",
+    border: dm ? "#333" : "#e8e8e8",
+    header: "#1a6bb5",
+  };
+
+  const daysUntil = () => {
+    if (!trip?.dateStart) return null;
+    const diff = Math.ceil((new Date(trip.dateStart) - new Date()) / 86400000);
+    return diff > 0 ? diff : null;
+  };
+
   async function addReservation(data) {
     await addDoc(collection(db, "trips", tripId, "reservations"), {
-      ...data,
-      createdBy: user.uid,
-      createdByName: user.displayName || "Moi",
-      createdAt: serverTimestamp()
+      ...data, createdBy: user.uid, createdByName: user.displayName || "Moi", createdAt: serverTimestamp()
     });
-    // log activity
     await addDoc(collection(db, "trips", tripId, "activity"), {
       text: `${user.displayName || "Un voyageur"} a ajouté : ${data.name}`,
-      icon: data.type === "vol" ? "✈️" : data.type === "hotel" ? "🏨" : data.type === "transport" ? "🚌" : "🎭",
-      createdAt: serverTimestamp(),
-      uid: user.uid
+      icon: {vol:"✈️",hotel:"🏨",transport:"🚌",activite:"🎭",restaurant:"🍽️"}[data.type] || "📌",
+      createdAt: serverTimestamp(), uid: user.uid
     });
+  }
+
+  async function updateReservation(id, data) {
+    await updateDoc(doc(db, "trips", tripId, "reservations", id), data);
   }
 
   async function deleteReservation(id) {
     await deleteDoc(doc(db, "trips", tripId, "reservations", id));
   }
 
-  function handleAuth(u, tId) {
-    setUser(u);
-    setTripId(tId);
-  }
+  function handleAuth(u, tId) { setUser(u); setTripId(tId); }
 
   async function handleSignOut() {
     await signOut(auth);
-    setUser(null);
-    setTripId(null);
-    setTrip(null);
-    setReservations([]);
+    setUser(null); setTripId(null); setTrip(null); setReservations([]);
+  }
+
+  async function switchTrip(tId) {
+    await updateDoc(doc(db, "users", user.uid), { tripId: tId });
+    setTripId(tId);
+    setShowTripSelector(false);
   }
 
   if (loading) return (
-    <div style={appStyles.loadingScreen}>
-      <div style={{fontSize:40, marginBottom:12}}>✈️</div>
-      <div style={{fontSize:16, color:"#666"}}>Chargement...</div>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a6bb5"}}>
+      <div style={{fontSize:48,marginBottom:12}}>✈️</div>
+      <div style={{fontSize:16,color:"white",opacity:0.9}}>Chargement...</div>
     </div>
   );
 
-  if (!user || !tripId) return (
-    <div style={appStyles.phoneFrame}>
-      <AuthPage onAuth={handleAuth} />
-    </div>
-  );
+  if (!user || !tripId) return <div style={{maxWidth:430,margin:"0 auto",height:"100dvh",overflow:"hidden"}}><AuthPage onAuth={handleAuth} darkMode={dm} C={C} /></div>;
 
-  const memberCount = trip?.members?.length || 1;
-  const memberInitials = trip ? Object.entries(trip.memberNames || {}).map(([uid, name]) => ({
-    uid,
-    initial: name ? name[0].toUpperCase() : "?",
-    name
-  })) : [];
+  const memberInitials = trip ? Object.entries(trip.memberNames || {}).map(([uid, name], i) => ({ uid, initial: name?.[0]?.toUpperCase() || "?", name })) : [];
+  const countdown = daysUntil();
 
   return (
-    <div style={appStyles.phoneFrame}>
-      <div style={appStyles.app}>
+    <div style={{maxWidth:430,margin:"0 auto",height:"100dvh",overflow:"hidden",position:"relative",background:C.bg}}>
+      <div style={{height:"100%",display:"flex",flexDirection:"column",fontFamily:"-apple-system,BlinkMacSystemFont,sans-serif",position:"relative"}}>
+
         {/* HEADER */}
-        <div style={appStyles.header}>
-          <div style={appStyles.headerTop}>
-            <div>
-              <div style={appStyles.headerTrip}>{trip?.destination || trip?.name || "Mon voyage"}</div>
-              <div style={appStyles.headerSub}>
-                {trip?.dateStart && trip?.dateEnd
-                  ? `${trip.dateStart} → ${trip.dateEnd} · `
-                  : ""}
-                {memberCount} voyageur{memberCount > 1 ? "s" : ""}
+        <div style={{background:C.header,paddingTop:"max(env(safe-area-inset-top),16px)",paddingBottom:12,paddingLeft:20,paddingRight:20,flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{cursor:"pointer"}} onClick={() => setShowTripSelector(true)}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{fontSize:18,fontWeight:700,color:"white"}}>{trip?.destination || trip?.name || "Mon voyage"}</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>▾</div>
+              </div>
+              <div style={{fontSize:12,opacity:0.8,color:"white",marginTop:2}}>
+                {trip?.dateStart && trip?.dateEnd ? `${trip.dateStart} → ${trip.dateEnd} · ` : ""}
+                {(trip?.members?.length || 1)} voyageur{(trip?.members?.length || 1) > 1 ? "s" : ""}
+                {countdown ? <span style={{marginLeft:8,background:"rgba(255,255,255,0.2)",borderRadius:99,padding:"1px 8px",fontSize:11}}>J-{countdown}</span> : null}
               </div>
             </div>
-            <div style={appStyles.headerActions}>
-              <div style={appStyles.syncDot}></div>
-              <button style={appStyles.iconBtn} onClick={() => setShowNotifs(true)}>🔔</button>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:7,height:7,background:"#4ade80",borderRadius:"50%"}}></div>
+              <button onClick={() => setShowNotifs(true)} style={{width:30,height:30,borderRadius:"50%",background:"rgba(255,255,255,0.2)",border:"none",cursor:"pointer",fontSize:15}}>🔔</button>
               <div style={{display:"flex"}}>
-                {memberInitials.slice(0,3).map((m, i) => (
+                {memberInitials.slice(0,3).map((m,i) => (
                   <button key={m.uid} onClick={() => setShowShare(true)}
-                    style={{...appStyles.avatarBtn, marginLeft: i===0 ? 0 : -6, zIndex: 3-i,
-                      background: i===0 ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.2)"}}>
+                    style={{width:30,height:30,borderRadius:"50%",border:"2px solid rgba(255,255,255,0.5)",color:"white",fontSize:11,fontWeight:700,cursor:"pointer",marginLeft:i===0?0:-6,zIndex:3-i,background:"rgba(255,255,255,0.25)"}}>
                     {m.initial}
                   </button>
                 ))}
@@ -140,53 +161,33 @@ export default function App() {
         </div>
 
         {/* NAV */}
-        <div style={appStyles.nav}>
+        <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,background:C.bg,flexShrink:0}}>
           {["agenda","reservations","budget"].map(t => (
-            <button key={t} style={{...appStyles.navBtn, ...(tab===t ? appStyles.navBtnActive : {})}}
-              onClick={() => setTab(t)}>
-              {t === "agenda" ? "Agenda" : t === "reservations" ? "Réservations" : "Budget"}
+            <button key={t} onClick={() => setTab(t)}
+              style={{flex:1,padding:"11px 8px",fontSize:12,color:tab===t?"#1a6bb5":C.text2,border:"none",background:"none",borderBottom:tab===t?"2px solid #1a6bb5":"2px solid transparent",cursor:"pointer",fontWeight:tab===t?700:400}}>
+              {t==="agenda"?"Agenda":t==="reservations"?"Réservations":"Budget"}
             </button>
           ))}
         </div>
 
         {/* CONTENT */}
-        <div style={appStyles.content}>
-          {tab === "agenda" && <AgendaTab reservations={reservations} trip={trip} onAdd={() => setShowForm(true)} currentUser={user} />}
-          {tab === "reservations" && <ReservationsTab reservations={reservations} onAdd={() => setShowForm(true)} onDelete={deleteReservation} currentUser={user} />}
-          {tab === "budget" && <BudgetTab reservations={reservations} trip={trip} tripId={tripId} />}
+        <div style={{flex:1,overflowY:"auto",padding:16}}>
+          {tab==="agenda" && <AgendaTab reservations={reservations} trip={trip} onAdd={() => setShowForm(true)} onEdit={r => { setEditingReservation(r); setShowForm(true); }} currentUser={user} C={C} />}
+          {tab==="reservations" && <ReservationsTab reservations={reservations} onAdd={() => setShowForm(true)} onEdit={r => { setEditingReservation(r); setShowForm(true); }} onDelete={deleteReservation} currentUser={user} C={C} tripId={tripId} />}
+          {tab==="budget" && <BudgetTab reservations={reservations} trip={trip} tripId={tripId} C={C} />}
         </div>
 
-        {/* TOOLS FAB */}
-        <div style={appStyles.toolsBar}>
-          <button style={appStyles.fab} onClick={() => setShowTools(true)}>⚙️</button>
+        {/* FAB */}
+        <div style={{display:"flex",justifyContent:"center",padding:"8px 0 max(env(safe-area-inset-bottom),6px)",borderTop:`1px solid ${C.border}`,background:C.bg,flexShrink:0}}>
+          <button onClick={() => setShowTools(true)} style={{width:46,height:46,borderRadius:"50%",background:"#1a6bb5",border:"none",cursor:"pointer",fontSize:22,boxShadow:"0 2px 8px rgba(26,107,181,0.3)"}}>⚙️</button>
         </div>
 
-        {/* OVERLAYS */}
-        {showForm && <ReservationForm onClose={() => setShowForm(false)} onSave={addReservation} trip={trip} />}
-        {showTools && <ToolsSheet onClose={() => setShowTools(false)} />}
-        {showShare && <SharePanel trip={trip} tripId={tripId} onClose={() => setShowShare(false)} onSignOut={handleSignOut} currentUser={user} />}
-        {showNotifs && <NotificationsPanel tripId={tripId} onClose={() => setShowNotifs(false)} />}
+        {showForm && <ReservationForm onClose={() => { setShowForm(false); setEditingReservation(null); }} onSave={addReservation} onUpdate={updateReservation} trip={trip} editing={editingReservation} C={C} tripId={tripId} />}
+        {showTools && <ToolsSheet onClose={() => setShowTools(false)} C={C} />}
+        {showShare && <SharePanel trip={trip} tripId={tripId} onClose={() => setShowShare(false)} onSignOut={handleSignOut} currentUser={user} C={C} />}
+        {showNotifs && <NotificationsPanel tripId={tripId} onClose={() => setShowNotifs(false)} C={C} />}
+        {showTripSelector && <TripSelector user={user} currentTripId={tripId} onSwitch={switchTrip} onClose={() => setShowTripSelector(false)} C={C} />}
       </div>
     </div>
   );
 }
-
-const appStyles = {
-  loadingScreen: { display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#f5f5f5" },
-  phoneFrame: { maxWidth:430, margin:"0 auto", height:"100dvh", overflow:"hidden", position:"relative" },
-  app: { height:"100%", display:"flex", flexDirection:"column", background:"#fff", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative" },
-  header: { background:"#1a6bb5", padding:"env(safe-area-inset-top, 16px) 20px 12px", paddingTop:"max(env(safe-area-inset-top), 16px)", color:"white", flexShrink:0 },
-  headerTop: { display:"flex", justifyContent:"space-between", alignItems:"center" },
-  headerTrip: { fontSize:18, fontWeight:600 },
-  headerSub: { fontSize:12, opacity:0.8, marginTop:2 },
-  headerActions: { display:"flex", alignItems:"center", gap:8 },
-  syncDot: { width:7, height:7, background:"#4ade80", borderRadius:"50%" },
-  iconBtn: { width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,0.2)", border:"none", cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" },
-  avatarBtn: { width:30, height:30, borderRadius:"50%", border:"2px solid rgba(255,255,255,0.5)", color:"white", fontSize:11, fontWeight:600, cursor:"pointer" },
-  nav: { display:"flex", borderBottom:"1px solid #eee", background:"#fff", flexShrink:0 },
-  navBtn: { flex:1, padding:"11px 8px", fontSize:12, color:"#888", border:"none", background:"none", borderBottom:"2px solid transparent", cursor:"pointer" },
-  navBtnActive: { color:"#1a6bb5", borderBottomColor:"#1a6bb5", fontWeight:600 },
-  content: { flex:1, overflowY:"auto", padding:16 },
-  toolsBar: { display:"flex", justifyContent:"center", padding:"8px 0 6px", borderTop:"1px solid #eee", flexShrink:0 },
-  fab: { width:46, height:46, borderRadius:"50%", background:"#1a6bb5", border:"none", cursor:"pointer", fontSize:22, boxShadow:"0 2px 8px rgba(26,107,181,0.3)" },
-};
