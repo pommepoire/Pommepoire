@@ -30,9 +30,9 @@ export default function App() {
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     setDarkMode(mq.matches);
-    const handler = e => setDarkMode(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    const h = e => setDarkMode(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
   }, []);
 
   useEffect(() => {
@@ -40,9 +40,7 @@ export default function App() {
       setUser(u);
       if (u) {
         const userDoc = await getDoc(doc(db, "users", u.uid));
-        if (userDoc.exists() && userDoc.data().tripId) {
-          setTripId(userDoc.data().tripId);
-        }
+        if (userDoc.exists() && userDoc.data().tripId) setTripId(userDoc.data().tripId);
       }
       setLoading(false);
     });
@@ -51,7 +49,7 @@ export default function App() {
 
   useEffect(() => {
     if (!tripId) return;
-    const unsub = onSnapshot(doc(db, "trips", tripId), (snap) => {
+    const unsub = onSnapshot(doc(db, "trips", tripId), snap => {
       if (snap.exists()) setTrip({ id: snap.id, ...snap.data() });
     });
     return unsub;
@@ -59,7 +57,7 @@ export default function App() {
 
   useEffect(() => {
     if (!tripId) return;
-    const unsub = onSnapshot(collection(db, "trips", tripId, "reservations"), (snap) => {
+    const unsub = onSnapshot(collection(db, "trips", tripId, "reservations"), snap => {
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       items.sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
       setReservations(items);
@@ -74,7 +72,6 @@ export default function App() {
     text: dm ? "#fff" : "#111",
     text2: dm ? "#aaa" : "#666",
     border: dm ? "#333" : "#e8e8e8",
-    header: "#1a6bb5",
   };
 
   const daysUntil = () => {
@@ -122,7 +119,11 @@ export default function App() {
     </div>
   );
 
-  if (!user || !tripId) return <div style={{maxWidth:430,margin:"0 auto",height:"100dvh",overflow:"hidden"}}><AuthPage onAuth={handleAuth} darkMode={dm} C={C} /></div>;
+  if (!user || !tripId) return (
+    <div style={{maxWidth:430,margin:"0 auto",height:"100dvh",overflow:"hidden"}}>
+      <AuthPage onAuth={handleAuth} darkMode={dm} C={C} />
+    </div>
+  );
 
   const memberInitials = trip ? Object.entries(trip.memberNames || {}).map(([uid, name], i) => ({ uid, initial: name?.[0]?.toUpperCase() || "?", name })) : [];
   const countdown = daysUntil();
@@ -132,22 +133,28 @@ export default function App() {
       <div style={{height:"100%",display:"flex",flexDirection:"column",fontFamily:"-apple-system,BlinkMacSystemFont,sans-serif",position:"relative"}}>
 
         {/* HEADER */}
-        <div style={{background:C.header,paddingTop:"max(env(safe-area-inset-top),16px)",paddingBottom:12,paddingLeft:20,paddingRight:20,flexShrink:0}}>
+        <div style={{background:"#1a6bb5",paddingTop:"max(env(safe-area-inset-top),16px)",paddingBottom:12,paddingLeft:20,paddingRight:20,flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{cursor:"pointer"}} onClick={() => setShowTripSelector(true)}>
+            <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={() => setShowTripSelector(true)}>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{fontSize:18,fontWeight:700,color:"white"}}>{trip?.destination || trip?.name || "Mon voyage"}</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>▾</div>
+                <div style={{fontSize:17,fontWeight:700,color:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{trip?.destination || trip?.name || "Mon voyage"}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",flexShrink:0}}>▾</div>
               </div>
-              <div style={{fontSize:12,opacity:0.8,color:"white",marginTop:2}}>
-                {trip?.dateStart && trip?.dateEnd ? `${trip.dateStart} → ${trip.dateEnd} · ` : ""}
-                {(trip?.members?.length || 1)} voyageur{(trip?.members?.length || 1) > 1 ? "s" : ""}
-                {countdown ? <span style={{marginLeft:8,background:"rgba(255,255,255,0.2)",borderRadius:99,padding:"1px 8px",fontSize:11}}>J-{countdown}</span> : null}
+              <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3,flexWrap:"nowrap"}}>
+                <div style={{fontSize:11,opacity:0.8,color:"white",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {trip?.dateStart && trip?.dateEnd ? `${trip.dateStart} → ${trip.dateEnd}` : ""}
+                  {" · "}{(trip?.members?.length || 1)} voyageur{(trip?.members?.length || 1) > 1 ? "s" : ""}
+                </div>
+                {countdown && (
+                  <div style={{flexShrink:0,background:"rgba(255,255,255,0.25)",borderRadius:99,padding:"2px 10px",fontSize:12,fontWeight:700,color:"white",whiteSpace:"nowrap"}}>
+                    J-{countdown}
+                  </div>
+                )}
               </div>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:12,flexShrink:0}}>
               <div style={{width:7,height:7,background:"#4ade80",borderRadius:"50%"}}></div>
-              <button onClick={() => setShowNotifs(true)} style={{width:30,height:30,borderRadius:"50%",background:"rgba(255,255,255,0.2)",border:"none",cursor:"pointer",fontSize:15}}>🔔</button>
+              <button onClick={() => setShowNotifs(true)} style={{width:30,height:30,borderRadius:"50%",background:"rgba(255,255,255,0.2)",border:"none",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>🔔</button>
               <div style={{display:"flex"}}>
                 {memberInitials.slice(0,3).map((m,i) => (
                   <button key={m.uid} onClick={() => setShowShare(true)}
@@ -171,16 +178,17 @@ export default function App() {
         </div>
 
         {/* CONTENT */}
-        <div style={{flex:1,overflowY:"auto",padding:16}}>
+        <div style={{flex:1,overflowY:"auto",padding:16,position:"relative"}}>
           {tab==="agenda" && <AgendaTab reservations={reservations} trip={trip} onAdd={() => setShowForm(true)} onEdit={r => { setEditingReservation(r); setShowForm(true); }} currentUser={user} C={C} />}
           {tab==="reservations" && <ReservationsTab reservations={reservations} onAdd={() => setShowForm(true)} onEdit={r => { setEditingReservation(r); setShowForm(true); }} onDelete={deleteReservation} currentUser={user} C={C} tripId={tripId} />}
           {tab==="budget" && <BudgetTab reservations={reservations} trip={trip} tripId={tripId} C={C} />}
         </div>
 
-        {/* FAB */}
-        <div style={{display:"flex",justifyContent:"center",padding:"8px 0 max(env(safe-area-inset-bottom),6px)",borderTop:`1px solid ${C.border}`,background:C.bg,flexShrink:0}}>
-          <button onClick={() => setShowTools(true)} style={{width:46,height:46,borderRadius:"50%",background:"#1a6bb5",border:"none",cursor:"pointer",fontSize:22,boxShadow:"0 2px 8px rgba(26,107,181,0.3)"}}>⚙️</button>
-        </div>
+        {/* TOOLS FAB — bas droite */}
+        <button onClick={() => setShowTools(true)}
+          style={{position:"absolute",bottom:"max(env(safe-area-inset-bottom),16px)",right:20,width:50,height:50,borderRadius:"50%",background:"#1a6bb5",border:"none",cursor:"pointer",fontSize:24,boxShadow:"0 4px 12px rgba(26,107,181,0.4)",zIndex:10,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          🧰
+        </button>
 
         {showForm && <ReservationForm onClose={() => { setShowForm(false); setEditingReservation(null); }} onSave={addReservation} onUpdate={updateReservation} trip={trip} editing={editingReservation} C={C} tripId={tripId} />}
         {showTools && <ToolsSheet onClose={() => setShowTools(false)} C={C} />}
