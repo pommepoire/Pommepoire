@@ -191,7 +191,7 @@ export default function App() {
         </button>
 
         {showForm && <ReservationForm onClose={() => { setShowForm(false); setEditingReservation(null); }} onSave={addReservation} onUpdate={updateReservation} trip={trip} editing={editingReservation} C={C} tripId={tripId} />}
-        {showTools && <ToolsSheet onClose={() => setShowTools(false)} C={C} />}
+        {showTools && <ToolsSheet onClose={() => setShowTools(false)} C={C} tripId={tripId} trip={trip} reservations={reservations} />}
         {showShare && <SharePanel trip={trip} tripId={tripId} onClose={() => setShowShare(false)} onSignOut={handleSignOut} currentUser={user} C={C} />}
         {showNotifs && <NotificationsPanel tripId={tripId} onClose={() => setShowNotifs(false)} C={C} />}
         {showTripSelector && <TripSelector user={user} currentTripId={tripId} onSwitch={switchTrip} onClose={() => setShowTripSelector(false)} C={C} />}

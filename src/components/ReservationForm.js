@@ -1,44 +1,38 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const TYPES = [
-  { key:"vol",label:"Vol",icon:"✈️" },
-  { key:"hotel",label:"Hôtel",icon:"🏨" },
-  { key:"transport",label:"Transport",icon:"🚌" },
-  { key:"activite",label:"Activité",icon:"🎭" },
-  { key:"restaurant",label:"Restaurant",icon:"🍽️" },
-  { key:"autre",label:"Autre",icon:"📌" },
+  { key:"vol", label:"Vol", icon:"✈️" },
+  { key:"hotel", label:"Hôtel", icon:"🏨" },
+  { key:"transport", label:"Transport", icon:"🚌" },
+  { key:"activite", label:"Activité", icon:"🎭" },
+  { key:"restaurant", label:"Restaurant", icon:"🍽️" },
+  { key:"autre", label:"Autre", icon:"📌" },
 ];
 
 export default function ReservationForm({ onClose, onSave, onUpdate, trip, editing, C, tripId }) {
   const isEdit = !!editing;
   const [form, setForm] = useState(isEdit ? { ...editing } : {
-    type:"vol", name:"", dateStart:trip?.dateStart||"", dateEnd:trip?.dateStart||"",
-    time:"", price:"", confirmation:"", location:"", website:"", notes:""
+    type:"vol", name:"",
+    dateStart: trip?.dateStart || "",
+    dateEnd: trip?.dateStart || "",
+    timeStart:"", timeEnd:"",
+    price:"", confirmation:"", location:"", website:"", notes:""
   });
   const [attachments, setAttachments] = useState(editing?.attachments || []);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef();
-  const sheetRef = useRef();
-  const startY = useRef(null);
-  const [translateY, setTranslateY] = useState(0);
 
-  const set = (k,v) => setForm(f => ({...f,[k]:v}));
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Swipe down to close
-  function onTouchStart(e) { startY.current = e.touches[0].clientY; }
-  function onTouchMove(e) {
-    if (startY.current === null) return;
-    const dy = e.touches[0].clientY - startY.current;
-    if (dy > 0) setTranslateY(dy);
-  }
-  function onTouchEnd() {
-    if (translateY > 80) onClose();
-    else setTranslateY(0);
-    startY.current = null;
+  // Quand date début change, date fin s'aligne automatiquement si pas encore modifiée
+  function handleDateStart(v) {
+    set("dateStart", v);
+    if (!form.dateEnd || form.dateEnd < v) set("dateEnd", v);
+    setError("");
   }
 
   async function handleFileUpload(e) {
@@ -60,7 +54,9 @@ export default function ReservationForm({ onClose, onSave, onUpdate, trip, editi
 
   async function handleSave() {
     if (!form.name.trim()) { setError("Le nom est obligatoire."); return; }
-    if (form.dateStart && form.dateEnd && form.dateEnd < form.dateStart) { setError("La date de retour ne peut pas précéder la date de départ."); return; }
+    if (form.dateStart && form.dateEnd && form.dateEnd < form.dateStart) {
+      setError("La date de retour ne peut pas précéder la date de départ."); return;
+    }
     setSaving(true);
     const data = { ...form, attachments };
     if (isEdit) await onUpdate(editing.id, data);
@@ -71,23 +67,24 @@ export default function ReservationForm({ onClose, onSave, onUpdate, trip, editi
 
   return (
     <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"flex-end",zIndex:30}}>
-      <div ref={sheetRef}
-        style={{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxHeight:"93%",overflowY:"auto",transform:`translateY(${translateY}px)`,transition:translateY===0?"transform 0.3s ease":"none"}}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      <div style={{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxHeight:"93%",overflowY:"auto"}}>
 
-        {/* Handle + close */}
+        {/* Header sticky */}
         <div style={{padding:"14px 18px 0",position:"sticky",top:0,background:C.bg,zIndex:1}}>
           <div style={{width:36,height:4,background:"#ccc",borderRadius:99,margin:"0 auto 10px"}}></div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div style={{fontSize:17,fontWeight:700,color:C.text}}>{isEdit ? "Modifier la réservation" : "Nouvelle réservation"}</div>
+            <div style={{fontSize:17,fontWeight:700,color:C.text}}>
+              {isEdit ? "Modifier la réservation" : "Nouvelle réservation"}
+            </div>
             <button onClick={onClose} style={{width:30,height:30,borderRadius:"50%",background:C.bg2,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",color:C.text2}}>✕</button>
           </div>
         </div>
 
         <div style={{padding:"0 18px 32px"}}>
+          {/* Types */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,marginBottom:14}}>
             {TYPES.map(t => (
-              <div key={t.key} onClick={() => set("type",t.key)}
+              <div key={t.key} onClick={() => set("type", t.key)}
                 style={{padding:"9px 6px",border:`0.5px solid ${form.type===t.key?"#1a6bb5":C.border}`,borderRadius:10,textAlign:"center",cursor:"pointer",fontSize:11,color:form.type===t.key?"#1a6bb5":C.text2,background:form.type===t.key?"#e6f1fb":"transparent",fontWeight:form.type===t.key?700:400}}>
                 <span style={{fontSize:18,display:"block",marginBottom:3}}>{t.icon}</span>{t.label}
               </div>
@@ -97,33 +94,41 @@ export default function ReservationForm({ onClose, onSave, onUpdate, trip, editi
           {error && <div style={{background:"#fee",border:"1px solid #fcc",borderRadius:8,padding:"8px 10px",fontSize:12,color:"#c00",marginBottom:12}}>{error}</div>}
 
           <F label="Nom / Description *" C={C}>
-            <input style={inp(C)} placeholder="Ex : Vol Paris → Barcelone" value={form.name} onChange={e => set("name",e.target.value)} />
+            <input style={inp(C)} placeholder="Ex : Vol Paris → Kuala Lumpur" value={form.name} onChange={e => set("name", e.target.value)} />
           </F>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <F label="Date de début" C={C}><input style={inp(C)} type="date" value={form.dateStart} onChange={e => { set("dateStart",e.target.value); setError(""); }} /></F>
-            <F label="Date de fin" C={C}><input style={inp(C)} type="date" value={form.dateEnd} min={form.dateStart} onChange={e => { set("dateEnd",e.target.value); setError(""); }} /></F>
+            <F label="Date de début" C={C}>
+              <input style={inp(C)} type="date" value={form.dateStart} onChange={e => handleDateStart(e.target.value)} />
+            </F>
+            <F label="Date de fin" C={C}>
+              <input style={inp(C)} type="date" value={form.dateEnd} min={form.dateStart} onChange={e => { set("dateEnd", e.target.value); setError(""); }} />
+            </F>
           </div>
 
-          {/* Heure et Prix sur lignes séparées */}
-          <F label="Heure" C={C}>
-            <input style={inp(C)} type="time" value={form.time} onChange={e => set("time",e.target.value)} />
-          </F>
-          <F label="Prix (€)" C={C}>
-            <input style={inp(C)} type="number" placeholder="0" value={form.price} onChange={e => set("price",e.target.value)} />
-          </F>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <F label="Heure de début" C={C}>
+              <input style={inp(C)} type="time" value={form.timeStart||""} onChange={e => set("timeStart", e.target.value)} />
+            </F>
+            <F label="Heure de fin" C={C}>
+              <input style={inp(C)} type="time" value={form.timeEnd||""} onChange={e => set("timeEnd", e.target.value)} />
+            </F>
+          </div>
 
+          <F label="Prix (€)" C={C}>
+            <input style={inp(C)} type="number" placeholder="0" value={form.price} onChange={e => set("price", e.target.value)} />
+          </F>
           <F label="N° de confirmation" C={C}>
-            <input style={inp(C)} placeholder="Ex : XK4892" value={form.confirmation} onChange={e => set("confirmation",e.target.value)} />
+            <input style={inp(C)} placeholder="Ex : XK4892" value={form.confirmation||""} onChange={e => set("confirmation", e.target.value)} />
           </F>
           <F label="Lieu / Adresse" C={C}>
-            <input style={inp(C)} placeholder="Ex : Terminal 2E, CDG" value={form.location} onChange={e => set("location",e.target.value)} />
+            <input style={inp(C)} placeholder="Ex : Terminal 2E, CDG" value={form.location||""} onChange={e => set("location", e.target.value)} />
           </F>
           <F label="Site de réservation" C={C}>
-            <input style={inp(C)} placeholder="Ex : booking.com" value={form.website} onChange={e => set("website",e.target.value)} />
+            <input style={inp(C)} placeholder="Ex : booking.com" value={form.website||""} onChange={e => set("website", e.target.value)} />
           </F>
           <F label="Notes" C={C}>
-            <input style={inp(C)} placeholder="Bagages inclus, early check-in…" value={form.notes} onChange={e => set("notes",e.target.value)} />
+            <input style={inp(C)} placeholder="Bagages inclus, early check-in…" value={form.notes||""} onChange={e => set("notes", e.target.value)} />
           </F>
 
           <F label="Pièces jointes" C={C}>
@@ -143,7 +148,7 @@ export default function ReservationForm({ onClose, onSave, onUpdate, trip, editi
 
           <button onClick={handleSave} disabled={saving||uploading}
             style={{width:"100%",padding:14,background:"#1a6bb5",border:"none",borderRadius:12,color:"white",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:8,opacity:(saving||uploading)?0.7:1}}>
-            {saving ? "Enregistrement…" : isEdit ? "Enregistrer les modifications" : "Enregistrer"}
+            {saving?"Enregistrement…":isEdit?"Enregistrer les modifications":"Enregistrer"}
           </button>
           <button onClick={onClose}
             style={{width:"100%",marginTop:10,padding:13,border:`1.5px solid ${C.border}`,borderRadius:12,background:"none",color:C.text,fontSize:14,fontWeight:600,cursor:"pointer"}}>
