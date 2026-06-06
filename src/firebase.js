@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAs9EOxe7atELBz6mBXWcN1KmwF94QwOGk",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyAs9EOxe7atELBz6mBXWcN1KmwF94QwOGk",
   authDomain: "pommepoire195.firebaseapp.com",
   projectId: "pommepoire195",
   storageBucket: "pommepoire195.firebasestorage.app",
@@ -17,3 +17,4 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+export const MAPS_KEY = process.env.REACT_APP_MAPS_KEY || "AIzaSyDj2a7nrmYPCSeeoQKmcOVSZ3I9UHBq9Rs";
