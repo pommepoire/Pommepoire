@@ -51,8 +51,42 @@ export default function App() {
 
   useEffect(()=>{
     if(!tripId)return;
-    return onSnapshot(collection(db,"trips",tripId,"reservations"),snap=>{
+    return onSnapshot(collection(db,"trips",tripId,"reservations"),async snap=>{
       const items=snap.docs.map(d=>({id:d.id,...d.data()}));
+
+      // Migration automatique des anciennes réservations vers le nouveau format
+      for(const item of items){
+        if(item.migrated) continue; // déjà migré, on skip
+        const hasOldFields = item.confirmation||item.location||item.website||item.notes||item.time;
+        if(!hasOldFields) continue; // pas d'anciens champs, rien à faire
+
+        // Construire l'objet details selon le type
+        const details = item.details||{};
+        if(item.confirmation && !details.numResa) details.numResa = item.confirmation;
+        if(item.website && !details.site) details.site = item.website;
+        if(item.notes && !details.notes) details.notes = item.notes;
+        if(item.time && !item.timeStart) {
+          // migrer l'ancien champ time vers timeStart
+        }
+        // Champs adresse selon le type
+        if(item.location){
+          if(item.type==="hotel"&&!details.adresse) details.adresse=item.location;
+          else if(item.type==="transport"){if(!details.gareDep)details.gareDep=item.location;}
+          else if(item.type==="activite"&&!details.lieu) details.lieu=item.location;
+          else if(item.type==="restaurant"&&!details.adresse) details.adresse=item.location;
+          else if(!details.lieu) details.lieu=item.location;
+        }
+
+        // Sauvegarder la migration dans Firebase
+        try {
+          await updateDoc(doc(db,"trips",tripId,"reservations",item.id),{
+            details,
+            timeStart: item.timeStart||item.time||"",
+            migrated: true,
+          });
+        } catch(e){ console.log("Migration error:",e); }
+      }
+
       items.sort((a,b)=>(a.dateStart||"").localeCompare(b.dateStart||""));
       setReservations(items);
     });
