@@ -121,8 +121,9 @@ export default function ReservationForm({ onClose, onSave, onUpdate, trip, editi
         uploaded.push({name:file.name,url,type:file.type});
       }
       setAttachments(a=>[...a,...uploaded]);
-    } catch(e) { setError("Erreur upload : "+e.message); }
+    } catch(err) { setError("Erreur upload : "+err.message); }
     setUploading(false);
+    e.target.value = "";
   }
 
   async function handleSave() {
@@ -253,22 +254,25 @@ export default function ReservationForm({ onClose, onSave, onUpdate, trip, editi
                 <input style={inp(C)} placeholder="Informations complémentaires…" value={form.details?.notes||""} onChange={e=>setDetail("notes",e.target.value)} />
               </F>
 
-              <F label="Pièces jointes" C={C}>
-                <div onClick={()=>fileRef.current.click()}
-                  style={{border:`1.5px dashed ${C.border}`,borderRadius:10,padding:14,textAlign:"center",color:C.text2,fontSize:13,cursor:"pointer",background:C.bg2}}>
-                  {uploading?"⏳ Upload en cours…":"📎 Ajouter un fichier (PDF, photo…)"}
-                </div>
-                <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic" style={{display:"none"}} onChange={handleFileUpload} />
-                {attachments.map((a,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginTop:6,padding:"6px 10px",background:C.bg2,borderRadius:8}}>
-                    <span>{a.type?.includes("pdf")?"📄":"🖼️"}</span>
-                    <a href={a.url} target="_blank" rel="noreferrer" style={{flex:1,fontSize:12,color:"#1a6bb5",textDecoration:"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</a>
-                    <button onClick={()=>setAttachments(att=>att.filter((_,j)=>j!==i))} style={{border:"none",background:"none",color:"#e24b4a",cursor:"pointer",fontSize:16}}>✕</button>
-                  </div>
-                ))}
-              </F>
             </>
           )}
+
+          {/* Pièces jointes - toujours visibles */}
+          <div style={{marginTop:12,paddingTop:12,borderTop:`0.5px solid ${C.border}`}}>
+            <div style={{fontSize:12,color:C.text2,marginBottom:8,fontWeight:600}}>Pièces jointes</div>
+            <div onClick={()=>fileRef.current.click()}
+              style={{border:`1.5px dashed ${C.border}`,borderRadius:10,padding:14,textAlign:"center",color:C.text2,fontSize:13,cursor:"pointer",background:C.bg2}}>
+              {uploading?"⏳ Upload en cours…":"📎 Ajouter un fichier (PDF, photo…)"}
+            </div>
+            <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic" style={{display:"none"}} onChange={handleFileUpload} />
+            {attachments.map((a,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginTop:6,padding:"6px 10px",background:C.bg2,borderRadius:8}}>
+                <span>{a.type?.includes("pdf")?"📄":"🖼️"}</span>
+                <a href={a.url} target="_blank" rel="noreferrer" style={{flex:1,fontSize:12,color:"#1a6bb5",textDecoration:"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</a>
+                <button onClick={()=>setAttachments(att=>att.filter((_,j)=>j!==i))} style={{border:"none",background:"none",color:"#e24b4a",cursor:"pointer",fontSize:16}}>✕</button>
+              </div>
+            ))}
+          </div>
 
           <button onClick={handleSave} disabled={saving||uploading}
             style={{width:"100%",padding:14,background:"#1a6bb5",border:"none",borderRadius:12,color:"white",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:16,opacity:(saving||uploading)?0.7:1}}>
