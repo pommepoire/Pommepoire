@@ -41,7 +41,7 @@ export default function AgendaTab({reservations,trip,onAdd,onEdit,currentUser,C}
               <div style={{flex:1,background:C.bg2,borderRadius:10,padding:"9px 11px",borderLeft:`3px solid ${COLORS[r.type]||"#888"}`,cursor:"pointer"}} onClick={()=>onEdit(r)}>
                 <div style={{fontSize:13,fontWeight:600,color:C.text}}>{r.name}</div>
                 {r.timeEnd&&<div style={{fontSize:11,color:C.text2,marginTop:2}}>→ {r.timeEnd}</div>}
-                {r.price&&<div style={{fontSize:11,color:C.text2,marginTop:2}}>💶 {r.price} €</div>}
+                {r.price&&(r.dateStart===activeDay||r.dateStart===r.dateEnd)&&<div style={{fontSize:11,color:C.text2,marginTop:2}}>💶 {r.price} €</div>}
                 <div style={{fontSize:10,color:COLORS[r.type]||"#888",marginTop:4}}>{r.createdByName}</div>
               </div>
             </div>
@@ -62,7 +62,7 @@ export default function AgendaTab({reservations,trip,onAdd,onEdit,currentUser,C}
                   {dr.map(r=>(
                     <div key={r.id} style={{borderRadius:8,padding:"8px 10px",marginBottom:4,background:BG[r.type]||"#f0f0f0",cursor:"pointer"}} onClick={()=>onEdit(r)}>
                       <div style={{fontSize:13,fontWeight:600,color:COLORS[r.type]||"#888"}}>{typeIcon(r.type)} {r.name}</div>
-                      {r.timeStart&&<div style={{fontSize:11,color:COLORS[r.type],opacity:0.8,marginTop:1}}>{r.timeStart}{r.price?` · ${r.price}€`:""}</div>}
+                      {r.timeStart&&<div style={{fontSize:11,color:COLORS[r.type],opacity:0.8,marginTop:1}}>{r.timeStart}{r.price&&(r.dateStart===d.iso||r.dateStart===r.dateEnd)?` · ${r.price}€`:""}</div>}
                     </div>
                   ))}
                 </div>
